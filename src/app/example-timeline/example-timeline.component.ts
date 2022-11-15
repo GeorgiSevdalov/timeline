@@ -3,6 +3,7 @@ import { Timeline } from 'vis-timeline';
 import { DataSet } from 'vis-data';
 import { FileInfo } from '../../../interfaces/file-info'
 import { forEach } from 'vis-util';
+import { CheckEndService } from '../services/check-end.service';
 
 @Component({
   selector: 'app-example-timeline',
@@ -16,17 +17,21 @@ export class ExampleTimelineComponent implements OnInit {
   data:any;
   groups:any;
   uploadFile:any;
-
+  startCheck:number = 0;
+  endCheck:number = 0
 
   uploadedFiles: any[] = [];
   dataInTimeline:any[] = [];
+  rows:any[] = [];
   vidDuration?: number;
-
+  duration: number = 0;
 
 
   @ViewChild('timeline', {static: true}) timelineContainer!: ElementRef;
 
-  constructor() {
+  constructor(
+    private checkService: CheckEndService
+  ) {
     this.getTimelineData();
     this.getTimelineGroups();
     this.getOptions();
@@ -39,22 +44,37 @@ export class ExampleTimelineComponent implements OnInit {
     this.timeline.addCustomTime(new Date(1970, 0, 1));
     this.timeline.setCustomTimeTitle("00:00:00,000");
 
+    this.checkService.lastVideoEnd.subscribe((val) => {
+      console.log(45545);
+
+      if(val){
+        this.startCheck = (val + 0.1);
+        this.endCheck = (val + this.duration);
+      }
+    });
+
+    this.checkService.lastAudioEnd.subscribe((val) => {
+      if(val){
+
+
+        this.startCheck = (val + 0.1);
+        this.endCheck = (val + this.duration);
+      }
+    })
+
   }
 
   getTimelineGroups(){
     this.groups = new DataSet([
       {
         id:0,
-        content: 'Row 1'
+        content: 'Video'
       },
       {
         id:1,
-        content: 'Row 2'
-      },
-      {
-        id:2,
-        content: 'Row 3'
+        content: 'audio'
       }
+
     ])
   }
 
@@ -76,8 +96,9 @@ export class ExampleTimelineComponent implements OnInit {
       zoomMin: 100,
       zoomMax: 21600000,
 
+
       editable: {
-        add: true,
+        add: false,
         updateTime: true,
         updateGroup: true,
       },
@@ -124,35 +145,73 @@ export class ExampleTimelineComponent implements OnInit {
 
     video.onloadedmetadata = () => {
       window.URL.revokeObjectURL(video.src);
-      const duration = video.duration;
-      this.uploadedFiles[this.uploadedFiles.length - 1].duration = duration;
-      this.vidDuration = duration;
+      this.duration = (video.duration) * 1000;
+      this.uploadedFiles[this.uploadedFiles.length - 1].duration = this.duration;
+      this.vidDuration = this.duration;
 
-      // HERE
+      //type check
 
-      //previous file length
-      if(this.dataInTimeline.length > 0){
-        console.log(this.dataInTimeline[this.dataInTimeline.length-1].end);
+      let groupeCheck:any;
+
+      if(file.type.split('/')[0] === 'video') {
+        groupeCheck = 0;
+        if(this.dataInTimeline.length === 0){
+
+          this.checkService.lastVideoEnd.next(this.duration);
+          this.endCheck = this.duration;
+          this.startCheck = 0;
+        };
+
+        if(this.dataInTimeline.length > 0){
+          console.log(256);
+
+          if(this.dataInTimeline.find(file => file.group === 0)){
+            console.log('next');
+
+            this.checkService.lastVideoEnd.next(Math.max(...this.dataInTimeline.map(o => {
+              console.log(255);
+
+              if(o.group === 0)
+                return o.end
+            })))
+          }
+        }
       }
 
-      //type check for
+      if(file.type.split('/')[0] === 'audio') {
+        groupeCheck = 1;
 
+        if(this.dataInTimeline.length === 0){
+          this.checkService.lastAudioEnd.next(this.duration);
+          this.endCheck = this.duration;
+          this.startCheck = 0;
+        }
+        if(this.dataInTimeline.length > 0){
+          if(this.dataInTimeline.find(file => file.group === 1)){
+          this.checkService.lastAudioEnd.next(Math.max(...this.dataInTimeline.map(o => {
+            if(o.group === 1)
+              return o.end
+          })))
+        }
+        }
+
+      }
 
       const uploadedFileInfo:FileInfo = {
         id:Math.random(),
-        group: this.dataInTimeline.length,
+        group: groupeCheck,
         content: this.uploadedFiles[this.uploadedFiles.length - 1].name,
         type:'',
-        duration:(this.uploadedFiles[this.uploadedFiles.length - 1].duration) * 1000,
-        start: 0,
-        end:(this.uploadedFiles[this.uploadedFiles.length - 1].duration) * 1000
+        duration:(this.uploadedFiles[this.uploadedFiles.length - 1].duration),
+        start: (this.startCheck),
+        end:(this.endCheck)
       }
 
       this.dataInTimeline.push(uploadedFileInfo)
 
       console.log(uploadedFileInfo);
 
-      console.log(this.dataInTimeline[this.dataInTimeline.length-1].end);
+      // console.log(this.dataInTimeline[this.dataInTimeline.length-1].end);
 
       this.getTimelineData();
       this.timeline?.setItems(this.dataInTimeline);
