@@ -19,12 +19,13 @@ export class ExampleTimelineComponent implements OnInit {
   uploadFile:any;
   startCheck:number = 0;
   endCheck:number = 0
-
-  uploadedFiles: any[] = [];
-  dataInTimeline:any[] = [];
-  rows:any[] = [];
-  vidDuration?: number;
   duration: number = 0;
+
+  dataInTimeline:any[] = []; // = [...audioFiles, ...videoFiles]
+  audioFiles:any[] = [];
+  videoFiles:any[] = [];
+
+
 
 
   @ViewChild('timeline', {static: true}) timelineContainer!: ElementRef;
@@ -44,55 +45,14 @@ export class ExampleTimelineComponent implements OnInit {
     this.timeline.addCustomTime(new Date(1970, 0, 1));
     this.timeline.setCustomTimeTitle("00:00:00,000");
 
-    this.checkService.lastVideoEnd.subscribe((val) => {
-      console.log(45545);
-
-      if(val){
-        this.startCheck = (val + 0.1);
-        this.endCheck = (val + this.duration);
-      }
-    });
-
-    this.checkService.lastAudioEnd.subscribe((val) => {
-      if(val){
-
-
-        this.startCheck = (val + 0.1);
-        this.endCheck = (val + this.duration);
-      }
-    })
-
-  }
-
-  getTimelineGroups(){
-    this.groups = new DataSet([
-      {
-        id:0,
-        content: 'Video'
-      },
-      {
-        id:1,
-        content: 'audio'
-      }
-
-    ])
-  }
-
-  getTimelineData() {
-
-    return this.dataInTimeline;
-  }
-
-  getOptions() {
-
     this.options = {
-      orientation: "bottom",
+      orientation: "top",
       min: new Date(1970, 0, 1),
       max: new Date(1970, 0, 1, 23, 59, 59, 999),
       showCurrentTime: false,
       multiselect: false,
       multiselectPerGroup: true,
-      stack: true,
+      stack: false,
       zoomMin: 100,
       zoomMax: 21600000,
 
@@ -129,25 +89,48 @@ export class ExampleTimelineComponent implements OnInit {
         },
       },
     }
+
+  }
+
+  getTimelineGroups(){
+    this.groups = new DataSet([
+      {
+        id:0,
+        content: 'Video'
+      },
+      {
+        id:1,
+        content: 'audio'
+      }
+    ])
+
+    // return this.groups;
+  }
+
+  getTimelineData() {
+
+    return this.dataInTimeline;
+  }
+
+  getOptions() {
   }
 
   onMove(item:any){
     console.log(item);
-
   }
 
   onFileSelected(event: any) {
-    window.URL = window.URL || window.webkitURL;
+
     const file: File = event.target['files'][0];
-    this.uploadedFiles.push(file);
     const video = document.createElement('video');
     video.preload = 'metadata';
 
     video.onloadedmetadata = () => {
       window.URL.revokeObjectURL(video.src);
+
+      //set duration
+
       this.duration = (video.duration) * 1000;
-      this.uploadedFiles[this.uploadedFiles.length - 1].duration = this.duration;
-      this.vidDuration = this.duration;
 
       //type check
 
@@ -155,63 +138,53 @@ export class ExampleTimelineComponent implements OnInit {
 
       if(file.type.split('/')[0] === 'video') {
         groupeCheck = 0;
-        if(this.dataInTimeline.length === 0){
 
-          this.checkService.lastVideoEnd.next(this.duration);
-          this.endCheck = this.duration;
+        if(this.videoFiles.length === 0) {
           this.startCheck = 0;
-        };
+          this.endCheck = this.duration
+        }
 
-        if(this.dataInTimeline.length > 0){
-          console.log(256);
-
-          if(this.dataInTimeline.find(file => file.group === 0)){
-            console.log('next');
-
-            this.checkService.lastVideoEnd.next(Math.max(...this.dataInTimeline.map(o => {
-              console.log(255);
-
-              if(o.group === 0)
-                return o.end
-            })))
-          }
+        if(this.videoFiles.length > 0) {
+          this.startCheck = Math.max(...this.videoFiles.map(o =>{
+            return o.end}));
+            this.endCheck = this.startCheck + this.duration;
         }
       }
 
       if(file.type.split('/')[0] === 'audio') {
         groupeCheck = 1;
 
-        if(this.dataInTimeline.length === 0){
-          this.checkService.lastAudioEnd.next(this.duration);
-          this.endCheck = this.duration;
+        if(this.audioFiles.length === 0) {
           this.startCheck = 0;
-        }
-        if(this.dataInTimeline.length > 0){
-          if(this.dataInTimeline.find(file => file.group === 1)){
-          this.checkService.lastAudioEnd.next(Math.max(...this.dataInTimeline.map(o => {
-            if(o.group === 1)
-              return o.end
-          })))
-        }
+          this.endCheck = this.duration
         }
 
+        if(this.audioFiles.length > 0) {
+          this.startCheck = Math.max(...this.audioFiles.map(o =>{
+            return o.end}));
+            this.endCheck = this.startCheck + this.duration;
+        }
       }
 
       const uploadedFileInfo:FileInfo = {
         id:Math.random(),
         group: groupeCheck,
-        content: this.uploadedFiles[this.uploadedFiles.length - 1].name,
+        content: file.name,
         type:'',
-        duration:(this.uploadedFiles[this.uploadedFiles.length - 1].duration),
+        duration:this.duration,
         start: (this.startCheck),
         end:(this.endCheck)
       }
 
-      this.dataInTimeline.push(uploadedFileInfo)
+      if(uploadedFileInfo.group === 0) {
+        this.videoFiles.push(uploadedFileInfo);
+      }
 
-      console.log(uploadedFileInfo);
+      if(uploadedFileInfo.group === 1) {
+        this.audioFiles.push(uploadedFileInfo);
+      }
 
-      // console.log(this.dataInTimeline[this.dataInTimeline.length-1].end);
+      this.dataInTimeline = [...this.videoFiles, ...this.audioFiles]
 
       this.getTimelineData();
       this.timeline?.setItems(this.dataInTimeline);
