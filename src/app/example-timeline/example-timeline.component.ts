@@ -2,8 +2,9 @@ import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import { Timeline } from 'vis-timeline';
 import { DataSet } from 'vis-data';
 import { FileInfo } from '../../../interfaces/file-info'
-import { forEach } from 'vis-util';
 import { CheckEndService } from '../services/check-end.service';
+import { DateTime } from 'luxon';
+import * as moment from 'moment';
 
 @Component({
   selector: 'app-example-timeline',
@@ -11,6 +12,7 @@ import { CheckEndService } from '../services/check-end.service';
   styleUrls: ['./example-timeline.component.scss']
 })
 export class ExampleTimelineComponent implements OnInit {
+  
 
   timeline?: Timeline;
   options?: {};
@@ -20,6 +22,7 @@ export class ExampleTimelineComponent implements OnInit {
   startCheck:number = 0;
   endCheck:number = 0
   duration: number = 0;
+  
 
   dataInTimeline:any[] = []; // = [...audioFiles, ...videoFiles]
   audioFiles:any[] = [];
@@ -32,64 +35,62 @@ export class ExampleTimelineComponent implements OnInit {
 
   constructor(
     private checkService: CheckEndService
-  ) {
-    this.getTimelineData();
-    this.getTimelineGroups();
-    this.getOptions();
-   }
+  ) { }
 
   ngOnInit(): void {
-    this.timeline = new Timeline(this.timelineContainer.nativeElement, [],[], this.options);
-    this.timeline.setGroups(this.groups);
-    this.timeline.setItems(this.data);
-    this.timeline.addCustomTime(new Date(1970, 0, 1));
-    this.timeline.setCustomTimeTitle("00:00:00,000");
-
+    this.getTimelineData();
+    this.getTimelineGroups();
+    
     this.options = {
       orientation: "top",
-      min: new Date(1970, 0, 1),
-      max: new Date(1970, 0, 1, 23, 59, 59, 999),
+      min: DateTime.utc(1970, 1, 1).toISO(),
+      max: DateTime.utc(1970, 1, 1,23, 59, 59, 999).toISO(),
       showCurrentTime: false,
       multiselect: false,
       multiselectPerGroup: true,
       stack: false,
       zoomMin: 100,
       zoomMax: 21600000,
-
-
       editable: {
-        add: false,
         updateTime: true,
         updateGroup: true,
       },
+      moment: () => {
+        return moment(DateTime.utc())
+      }
+     ,
       onMove: this.onMove,
       // onMoving: this.onMoving,
       format: {
         minorLabels: {
-          millisecond: "SSS [ms]",
-          second: "s [s]",
-          minute: "HH:mm:ss",
-          hour: "HH:mm:ss",
-          weekday: "HH:mm:ss",
-          day: "HH:mm:ss",
-          week: "HH:mm:ss",
-          month: "HH:mm:ss",
-          year: "HH:mm:ss",
-        },
-        majorLabels: {
-          millisecond: "HH:mm:ss",
-          second: "HH:mm:ss",
-          minute: "",
-          hour: "",
-          weekday: "",
-          day: "",
-          week: "",
-          month: "",
-          year: "",
-        },
-      },
-    }
-
+					millisecond:'SSS [ms]',
+					second:     's [s]',
+					minute:     'HH:mm:ss',
+					hour:       'HH:mm:ss',
+					weekday:    'HH:mm:ss',
+					day:        'HH:mm:ss',
+					week:       'HH:mm:ss',
+					month:      'HH:mm:ss',
+					year:       'HH:mm:ss'
+				},
+				majorLabels: {
+					millisecond:'HH:mm:ss',
+					second:     'HH:mm:ss',
+					minute:     '',
+					hour:       '',
+					weekday:    '',
+					day:        '',
+					week:       '',
+					month:      '',
+					year:       ''
+				}
+      }
+    };
+    this.timeline = new Timeline(this.timelineContainer.nativeElement, [],[], this.options);
+    this.timeline.addCustomTime(DateTime.utc(1970, 1, 1).toISO());
+    this.timeline.setCustomTimeTitle("00:00:00,000");
+    this.timeline.setGroups(this.groups);
+    this.timeline.setItems(this.data);
   }
 
   getTimelineGroups(){
@@ -112,8 +113,7 @@ export class ExampleTimelineComponent implements OnInit {
     return this.dataInTimeline;
   }
 
-  getOptions() {
-  }
+
 
   onMove(item:any){
     console.log(item);
@@ -192,4 +192,3 @@ export class ExampleTimelineComponent implements OnInit {
     video.src = URL.createObjectURL(file);
   }
 }
-
